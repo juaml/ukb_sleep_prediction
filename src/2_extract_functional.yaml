@@ -1,0 +1,43 @@
+workdir: /tmp
+
+datagrabber:
+  kind: PatternDataladDataGrabber
+  types:
+    - fALFF
+    - GCOR
+    - LCOR
+  patterns: 
+    fALFF: fALFF/fALFF_sub_{subject}.nii
+    GCOR: GCOR/GCOR_sub_{subject}.nii
+    LCOR: LCOR/LCOR_sub_{subject}.nii
+  replacements: 
+    - subject
+  uri: ria+file:///data/project/ukb_depression/DataLad_dataset/ria-ukb#~ukb_fc_metrix
+  rootdir: .
+markers:
+  - name: Schaefer1000x7_Mean
+    kind: ParcelAggregation
+    atlas: Schaefer1000x7
+    method: mean
+  - name: Schaefer400x7_Mean
+    kind: ParcelAggregation
+    atlas: Schaefer400x7
+    method: mean
+  - name: SUIT_Mean
+    kind: ParcelAggregation
+    atlas: SUITxMNI
+    method: mean
+  - name: Tian_Mean
+    kind: ParcelAggregation
+    atlas: TianxS4x3TxMNInonlinear2009cAsym
+    method: mean
+storage: 
+  kind: SQLiteFeatureStorage
+  uri: /data/project/ukb_rls/data/ukb_functional/fALFF_GCOR_LCOR.db
+queue:
+  jobname: UKB_Functional
+  kind: HTCondor
+  env:
+    kind: conda
+    name: nimrls
+  mem: 8G
