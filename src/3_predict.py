@@ -5,20 +5,22 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import joblib
-import julearn
 import numpy as np
 import optuna
 import pandas as pd
 from joblib_htcondor import logging as htcondor_logging
 from joblib_htcondor import register_htcondor
-from julearn import run_cross_validation
-from julearn.config import set_config
-from julearn.pipeline import PipelineCreator
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
     train_test_split,
 )
 from sklearn.svm import LinearSVC
+
+import julearn
+from julearn import run_cross_validation
+from julearn.config import set_config
+from julearn.pipeline import PipelineCreator
+
 
 lib_dir = Path(__file__).parent.parent / "lib"
 print(f"Adding {lib_dir} to path")
@@ -34,6 +36,7 @@ from nimrls.ml import (  # noqa: E402
     LinearSVCHeuristicC,
     LogisticRegressionHeuristicC,
 )
+
 
 configure_logging()
 julearn.utils.logging.configure_logging("INFO")
@@ -132,7 +135,7 @@ pheno_data_fname = data_dir / "phenotypes.csv"
 # apoe_data_fname = data_dir / "APOE.tsv"
 
 # Shared data directory for joblib
-shared_data_dir = Path("/data/group/riseml/joblib_htcondor_shared")
+shared_data_dir = Path("/data/group/ukb_rls/joblib_htcondor_shared")
 shared_data_dir.mkdir(parents=True, exist_ok=True)
 
 # Read data

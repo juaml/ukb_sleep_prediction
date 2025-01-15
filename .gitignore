@@ -53,3 +53,7 @@ src/results_bu
 *.joblib
 
 src/X_copy_results.py
+
+# Not allowed by UKB
+*_validation.csv
+data/phenotypes.csv

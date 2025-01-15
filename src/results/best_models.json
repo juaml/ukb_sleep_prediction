@@ -1,0 +1,38 @@
+{
+    "roc_auc": {
+        "doze_day": "logithc",
+        "morning_evening_person_extreme": "logithc",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "logithc",
+        "pheno_extreme": "logithc",
+        "sleep_duration_extreme": "logithc",
+        "snoring": "logithc"
+    },
+    "balanced_accuracy": {
+        "doze_day": "gssvm_rbf",
+        "morning_evening_person_extreme": "gslinearsvm",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "gssvm_rbf",
+        "pheno_extreme": "gslinearsvm",
+        "sleep_duration_extreme": "gslinearsvm",
+        "snoring": "gslinearsvm"
+    },
+    "f1": {
+        "doze_day": "gssvm_rbf",
+        "morning_evening_person_extreme": "gssvm_rbf",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "gssvm_rbf",
+        "pheno_extreme": "stacked_linearsvcheursiticc",
+        "sleep_duration_extreme": "gset",
+        "snoring": "gslinearsvm"
+    },
+    "average_precision": {
+        "doze_day": "logithc",
+        "morning_evening_person_extreme": "logithc",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "logithc",
+        "pheno_extreme": "logithc",
+        "sleep_duration_extreme": "logithc",
+        "snoring": "logithc"
+    }
+}

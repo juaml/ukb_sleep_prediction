@@ -74,14 +74,13 @@ target_labels_xaxis = {
     "snoring": "Snoring",
 }
 
-# List of the best models, taken from the results of 8-create_results_table.py
-with open(results_path / "best_models.json", "r") as f:
-    best_models = json.load(f)
-
-
 # %% Config paths
 
 results_path = Path(__file__).parent / "results"
+
+# List of the best models, taken from the results of 8-create_results_table.py
+with open(results_path / "best_models.json", "r") as f:
+    best_models = json.load(f)
 
 
 # %% Load data
@@ -289,3 +288,5 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
 fig.subplots_adjust(hspace=0.4, top=0.95)
 fig.suptitle(f"Best model's performance by metric and target (CV-{split})")
 fig.savefig(f"./figs/best_models_all_{split}_zoom.pdf", bbox_inches="tight")
+
+# %%

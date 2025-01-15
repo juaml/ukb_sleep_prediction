@@ -1,11 +1,12 @@
 # %%
 from pathlib import Path
+
 import pandas as pd
 from sklearn.metrics import (
-    roc_auc_score,
+    average_precision_score,
     balanced_accuracy_score,
     f1_score,
-    average_precision_score,
+    roc_auc_score,
 )
 
 
@@ -53,12 +54,12 @@ models = [
 
 
 model_labels = {
-    "linearsvm": "Linear SVM",
+    "gslinearsvm": "Linear SVM",
     "linearsvchc": "Linear SVM (Heuristic C)",
     "logithc": "Logit (Heuristic C)",
     "gsrf": "Random Forest",
     "gset": "Extra Trees",
-    "optunasvm_rbf": "SVM (RBF Kernel)",
+    "gssvm_rbf": "SVM (RBF Kernel)",
     "stacked_linearsvcheursiticc": "Stacked",
 }
 

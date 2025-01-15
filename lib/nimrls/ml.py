@@ -1,7 +1,6 @@
 import numpy as np
-
-from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
 
 from .logging import logger
 
@@ -62,17 +61,3 @@ class LogisticRegressionHeuristicC(LogisticRegression):
         # call super fit method
         super().fit(X, y, sample_weight=sample_weight)
         return self  # convention in scikitlearn
-
-
-from joblib._dask import DaskDistributedBackend
-
-
-class CustomDaskDistributedBackend(DaskDistributedBackend):
-    def compute_batch_size(self):
-        out = super().compute_batch_size()
-        logger.info(f"Batch size computed {out}")
-        return 1
-
-from joblib.parallel import register_parallel_backend
-
-register_parallel_backend("custom_dask", CustomDaskDistributedBackend)
