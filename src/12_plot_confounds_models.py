@@ -111,7 +111,7 @@ for t_score, t_models in best_models.items():
         t_df = pd.read_csv(confounds_fname, sep=";", index_col=0)
         t_df["model"] = t_model
         t_df["target"] = t_target
-        t_df["features"] = "confounds"
+        t_df["features"] = "age and sex"
         t_dfs.append(t_df)
 
     t_results = pd.concat(t_dfs)
