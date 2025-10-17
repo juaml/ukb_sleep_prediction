@@ -5,9 +5,9 @@ import time
 from argparse import ArgumentParser
 from pathlib import Path
 
-import numpy as np
-
 import joblib
+import numpy as np
+import pandas as pd
 from joblib_htcondor import register_htcondor
 from sklearn.model_selection import (
     RepeatedStratifiedKFold,
@@ -51,7 +51,7 @@ set_config("disable_x_check", True)
 start_time = time.time()
 
 # Shared data directory for joblib
-shared_data_dir = Path("/data/group/ukb_rls/joblib_htcondor_shared_confounds")
+shared_data_dir = Path("/data/group/riseml/joblib_htcondor_shared_confounds")
 shared_data_dir.mkdir(parents=True, exist_ok=True)
 
 parser = ArgumentParser(description="Run the predictive models.")
@@ -63,32 +63,65 @@ parser.add_argument(
     required=True,
 )
 parser.add_argument(
+    "--confounds",
+    metavar="confounds",
+    type=str,
+    help="Path to confounds file",
+    choices=["full", "reduced"],
+)
+parser.add_argument(
     "--model",
     metavar="model",
     type=str,
     help="Model to use",
     required=True,
 )
-
 parser.add_argument(
     "--data", metavar="data", type=str, help="Path to data", default="../data"
 )
+# %%
 args = parser.parse_args()
 
-# target = "pheno_extreme"
-# model_name = "linearsvchc"
+# %%
 target = args.target
 model_name = args.model
 data_dir = Path(args.data)
+confounds_set = args.confounds
+# %%
+# target = "pheno_extreme"
+# model_name = "linearsvchc"
+# data_dir = Path("/data/project/ukb_rls/data/features")
+# confounds_set = "full"
 
-out_dir = Path(__file__).parent / "phenotype_results" / target
+out_dir = Path(__file__).parent / "results_confounds" / target
 out_dir.mkdir(parents=True, exist_ok=True)
 
-
-X = ["Sex-0.0", "AgeAtScan"]
+if confounds_set == "reduced":
+    logger.info("Using reduced confounds set")
+    X = ["Sex-0.0", "AgeAtScan"]
+else:
+    logger.info("Using full confounds set")
+    X = [
+        "AgeAtScan",
+        "Sex-0.0",
+        "UK_Biobank_assessment_centre-2.0_11025.0",
+        "UK_Biobank_assessment_centre-2.0_11026.0",
+        "UK_Biobank_assessment_centre-2.0_11027.0",
+        "Volumetric_scaling_from_T1_head_image_to_standard_space-2.0",
+        "Scanner_lateral_X_brain_position-2.0",
+        "Scanner_transverse_Y_brain_position-2.0",
+        "Scanner_longitudinal_Z_brain_position-2.0",
+        "Scanner_table_position-2.0",
+        "Intensity_scaling_for_SWI-2.0",
+        "Date_of_attending_assessment_centre-2.0",
+    ]
 
 N_REPEATS = 5
 N_SPLITS = 5
+
+n_jobs = 1
+ht_condor_recursion_level = 0
+throttle = N_REPEATS * N_SPLITS
 
 predict_proba = False
 
@@ -96,7 +129,24 @@ pheno_data_fname = data_dir / "phenotypes.csv"
 
 pheno_data_df = read_pheno(pheno_data_fname)
 
-data = pheno_data_df
+confounds_data_fname = data_dir / "full_phenotypes.csv"
+
+confounds_data_df = read_pheno(confounds_data_fname)
+
+# Remove parentheses from column names (julearn bug #226)
+to_rename = {
+    x: x.replace("(", "").replace(")", "") for x in confounds_data_df.columns
+}
+confounds_data_df.rename(columns=to_rename, inplace=True)
+
+# %%
+to_merge = [
+    x for x in confounds_data_df.columns if x not in pheno_data_df.columns
+]
+data = pheno_data_df.join(confounds_data_df[to_merge], how="inner")
+
+
+# %%
 
 extreme_pheno_targets = {
     "sleep_duration_extreme": {  # 1160
@@ -140,6 +190,18 @@ extreme_pheno_targets = {
 sub_ids = np.loadtxt(data_dir / "subjects_list.txt", dtype=str)
 data = data.loc[sub_ids]
 
+# Date of attending assessment centre-2.0: convert to ordinal
+data["Date_of_attending_assessment_centre-2.0"] = pd.to_datetime(
+    data["Date_of_attending_assessment_centre-2.0"]
+).apply(pd.Timestamp.toordinal)
+
+# UK_Biobank_assessment_centre-2.0: Categorical, encode
+data = pd.get_dummies(
+    data,
+    columns=["UK_Biobank_assessment_centre-2.0"],
+)
+
+
 # %%
 
 t_target = extreme_pheno_targets[target]["target"]
@@ -156,12 +218,8 @@ if extreme_pheno_targets[target]["extremes"] == "quantiles":
     extra_params = {"pos_labels": [3]}
 else:
     data[target] = data[t_target].astype(int)
-    data = data[
-        data[target].isin(extreme_pheno_targets[target]["extremes"])
-    ]
-    extra_params = {
-        "pos_labels": extreme_pheno_targets[target]["pos_labels"]
-    }
+    data = data[data[target].isin(extreme_pheno_targets[target]["extremes"])]
+    extra_params = {"pos_labels": extreme_pheno_targets[target]["pos_labels"]}
 y = target
 # %%
 cv = RepeatedStratifiedKFold(
@@ -179,11 +237,12 @@ scoring = [
 
 creator = PipelineCreator(problem_type="classification", apply_to="*")
 creator.add("zscore")
-search_params = {}
+search_params = None
 if model_name in ["rf", "et"]:
     creator.add(model_name)
 elif model_name == "svm":
     creator.add(model_name, probability=True)
+    predict_proba = "proba"
 elif model_name == "gssvm":
     creator.add(
         "svm",
@@ -192,6 +251,11 @@ elif model_name == "gssvm":
         probability=True,
     )
     search_params = {"kind": "grid", "scoring": "balanced_accuracy"}
+    n_jobs = -1
+    ht_condor_recursion_level = 1
+    # each job needs 0.6Gb. 26 CV * 10 * 5 * 0.6 Gb = 780 Gb
+    throttle = [26, 50]
+    predict_proba = "proba"
 elif model_name == "gssvm_rbf":  # Used
     creator.add(
         "svm",
@@ -212,8 +276,12 @@ elif model_name == "gssvm_rbf":  # Used
         ],
         probability=True,
     )
-    predict_proba = True
+    predict_proba = "proba"
     n_jobs = -1
+    ht_condor_recursion_level = 1
+    # each job needs 0.6Gb. 26 CV * 110 * 5 * 0.6 Gb = 8 Tb
+    # Thottle to 60 to keep under 1 Tb
+    throttle = [26, 60]
     search_params = {
         "kind": "grid",
         "scoring": "balanced_accuracy",
@@ -228,8 +296,13 @@ elif model_name == "gsrf":  # Used
         n_estimators=n_estimators,
         criterion=criterion,
         max_features=max_features,
+        n_jobs=1,
     )
-    predict_proba = True
+    predict_proba = "proba"
+    n_jobs = -1
+    ht_condor_recursion_level = 1
+    # each job needs 0.6Gb. 26 CV * 12 * 5 * 0.6 Gb = 936 Gb
+    throttle = [26, 60]
     search_params = {"kind": "grid", "scoring": "balanced_accuracy"}
 elif model_name == "gset":  # Used
     n_estimators = [200, 500]
@@ -240,8 +313,13 @@ elif model_name == "gset":  # Used
         n_estimators=n_estimators,
         criterion=criterion,
         max_features=max_features,
+        n_jobs=1,
     )
-    predict_proba = True
+    predict_proba = "proba"
+    n_jobs = -1
+    ht_condor_recursion_level = 1
+    # each job needs 0.6Gb. 26 CV * 12 * 5 * 0.6 Gb = 936 Gb
+    throttle = [26, 60]
     search_params = {"kind": "grid", "scoring": "balanced_accuracy"}
 elif model_name == "gslinearsvm":
     model = LinearSVC()
@@ -249,10 +327,12 @@ elif model_name == "gslinearsvm":
         model,
         name="linearsvc",
         C=[0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000, 1000000],
-        dual=False,
     )
-    search_params = {"kind": "grid", "scoring": "balanced_accuracy"}
+    predict_proba = "decision"
     n_jobs = -1
+    ht_condor_recursion_level = 1
+    # each job needs 0.6Gb. 26 CV * 10 * 5 * 0.6 Gb = 780 Gb
+    throttle = [26, 50]
     search_params = {
         "kind": "grid",
         "scoring": "balanced_accuracy",
@@ -267,6 +347,7 @@ elif model_name == "linearsvm":  # Used
         dual=False,
         penalty="l1",
     )
+    predict_proba = "decision"
 elif model_name == "linearsvchc":  # Used
     model = LinearSVCHeuristicC()
     creator.add(
@@ -275,7 +356,8 @@ elif model_name == "linearsvchc":  # Used
         dual=False,
         penalty="l1",
     )
-    predict_proba = True
+    n_jobs = 1
+    predict_proba = "decision"
 elif model_name == "logithc":  # Used
     model = LogisticRegressionHeuristicC()
     creator.add(
@@ -285,37 +367,16 @@ elif model_name == "logithc":  # Used
         penalty="l1",
         solver="liblinear",
     )
-    predict_proba = True
-elif model_name == "stacked_linearsvcheursiticc":  # Used
-    feature_types = ["GMD", "Surface", "fALFF", "GCOR", "LCOR"]
-    models = []
-    for t_ftype in feature_types:
-        # t_regexp = f"{t_prefix}_.*"
-        t_model = PipelineCreator(
-            problem_type="classification", apply_to=t_ftype
-        )
-        t_model.add("filter_columns", apply_to="*", keep=t_ftype)
-        t_model.add("zscore")
-        t_model.add(
-            LinearSVCHeuristicC(),
-            name="linearsvcheuristicc",
-            dual=False,
-            penalty="l1",
-        )
-        models.append((f"model_{t_ftype}", t_model))
-    creator = PipelineCreator(problem_type="classification")
-    creator.add(
-        "stacking",
-        estimators=[models],
-        apply_to="*",
-    )
-    predict_proba = True
+    n_jobs = 1
+    predict_proba = "decision"
 elif model_name == "dummy":
     creator.add("dummy")
-    predict_proba = True
+    predict_proba = "proba"
+    n_jobs = 1
 elif model_name == "dummy_stratified":
     creator.add("dummy", strategy="stratified")
-    predict_proba = True
+    predict_proba = "proba"
+    n_jobs = 1
 elif model_name == "optunasvm_rbf":  # Used
     creator.add(
         "svm",
@@ -324,7 +385,7 @@ elif model_name == "optunasvm_rbf":  # Used
         gamma=(1e-7, 1000, "log-uniform"),
         probability=True,
     )
-    predict_proba = True
+    predict_proba = "proba"
     search_params = {
         "kind": "optuna",
         "scoring": "balanced_accuracy",
@@ -337,7 +398,7 @@ elif model_name == "optunasvm":  # Used
         kernel="linear",
         probability=True,
     )
-    predict_proba = True
+    predict_proba = "proba"
     search_params = {
         "kind": "optuna",
         "scoring": "balanced_accuracy",
@@ -369,7 +430,7 @@ X_types = {"continuous": X}
 with joblib.parallel_config(
     backend="htcondor",
     pool="head2.htc.inm7.de",
-    n_jobs=-1,
+    n_jobs=n_jobs,
     request_cpus=1,
     request_memory="16GB",
     request_disk="1GB",
@@ -378,7 +439,8 @@ with joblib.parallel_config(
     shared_data_dir=shared_data_dir,
     worker_log_level=logging.DEBUG,
     poll_interval=5,
-    max_recursion_level=1,  # Outer + Inner CV, no more than that
+    max_recursion_level=ht_condor_recursion_level,
+    export_metadata=True,
 ):
     out = run_cross_validation(
         X=X,
@@ -398,7 +460,7 @@ with joblib.parallel_config(
 
 scores, inspector = out
 
-fname = f"phenotype_{target}_{model_name}_cv_scores.csv"
+fname = f"{target}_{model_name}_{confounds_set}_cv_scores.csv"
 
 logger.info(f"Saving CV scores to {fname}")
 scores.to_csv(out_dir / fname, sep=";")
@@ -413,10 +475,14 @@ logger.info(
 
 logger.info("Predicting fold probabilities")
 try:
-    fold_predictions = inspector.folds.predict_proba()
+    if predict_proba == "proba":
+        fold_predictions = inspector.folds.predict_proba()
+    elif predict_proba == "decision":
+        fold_predictions = inspector.folds.decision_function()
+    else:
+        fold_predictions = inspector.folds.predict()
     fname = (
-        f"phenotype_{target}_{model_name}"
-        f"_fold_predictions.csv"
+        f"{target}_{model_name}_{confounds_set}_fold_predictions.csv"
     )
     fold_predictions.to_csv(out_dir / fname, sep=";")
 except Exception as e:  # noqa: BLE001

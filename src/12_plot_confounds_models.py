@@ -105,14 +105,32 @@ for t_score, t_models in best_models.items():
         confounds_fname = (
             confounds_results_path
             / t_target
-            / f"{t_target}_{t_model}_confounds_cv_scores.csv"
+            / f"{t_target}_{t_model}_reduced_cv_scores.csv"
+        )
+        if confounds_fname.exists() is True:
+            t_df = pd.read_csv(confounds_fname, sep=";", index_col=0)
+            t_df["model"] = t_model
+            t_df["target"] = t_target
+            t_df["features"] = "age and sex"
+            t_dfs.append(t_df)
+        else:
+            print(f"File {confounds_fname} does not exist, skipping.")
+
+        confounds_fname = (
+            confounds_results_path
+            / t_target
+            / f"{t_target}_{t_model}_full_cv_scores.csv"
         )
 
-        t_df = pd.read_csv(confounds_fname, sep=";", index_col=0)
-        t_df["model"] = t_model
-        t_df["target"] = t_target
-        t_df["features"] = "age and sex"
-        t_dfs.append(t_df)
+        if confounds_fname.exists() is True:
+            t_df = pd.read_csv(confounds_fname, sep=";", index_col=0)
+            t_df["model"] = t_model
+            t_df["target"] = t_target
+            t_df["features"] = "all confounds"
+            t_dfs.append(t_df)
+        else:
+            print(f"File {confounds_fname} does not exist, skipping.")
+            continue
 
     t_results = pd.concat(t_dfs)
     common_columns = [
@@ -158,7 +176,6 @@ for t_score, t_models in best_models.items():
     best_models_data[t_score] = pd.concat([train_scores, test_scores])
 
 
-
 # %% Now plot side-by-side with phenotype models
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 i_score = 0
@@ -180,7 +197,7 @@ for t_score, t_df in best_models_data.items():
             y=t_score,
             data=this_scores,
             ax=t_ax,
-            palette=["w", "w"],
+            palette=["w", "w", "w"],
             whis=(5, 95),
             hue="features",
             legend=False,
@@ -203,13 +220,16 @@ for t_score, t_df in best_models_data.items():
         )
         i_score += 1
 fig.subplots_adjust(hspace=0.4, top=0.90)
-fig.suptitle(f"Comparison of models trained on brain features vs age and sex (CV-test)")
-fig.savefig(f"./figs/best_confounds_models_all_train_main.pdf", bbox_inches="tight")
+fig.suptitle(
+    f"Comparison of models trained on brain features vs confounds (CV-test)"
+)
+fig.savefig(
+    f"./figs/best_confounds_models_all_train_main.pdf", bbox_inches="tight"
+)
 
 # %% Now plot side-by-side with phenotype models
 fig, axes = plt.subplots(2, 2, figsize=(16, 16))
 for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
-
     this_scores = t_df[t_df["split"] == "test"]
     t_ax = axes.ravel()[i_score]
     sns.swarmplot(
@@ -226,7 +246,7 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
         y=t_score,
         data=this_scores,
         ax=t_ax,
-        palette=["w", "w"],
+        palette=["w", "w", "w"],
         whis=(5, 95),
         hue="features",
         legend=False,
@@ -251,6 +271,10 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
         fontsize=12,
     )
 fig.subplots_adjust(hspace=0.4, top=0.95)
-fig.suptitle(f"Comparison of models trained on brain features vs age and sex (CV-test)")
-fig.savefig(f"./figs/best_confounds_models_all_train_supp.pdf", bbox_inches="tight")
+fig.suptitle(
+    f"Comparison of models trained on brain features vs age and sex (CV-test)"
+)
+fig.savefig(
+    f"./figs/best_confounds_models_all_train_supp.pdf", bbox_inches="tight"
+)
 # %%

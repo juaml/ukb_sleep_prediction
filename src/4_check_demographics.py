@@ -1,18 +1,22 @@
 # %%
-from pathlib import Path
+import sys
 import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 import seaborn as sns
-import matplotlib.pyplot as plt
+from scipy import stats
 
-import sys
+
 lib_dir = Path(__file__).parent.parent / "lib"
 print(f"Adding {lib_dir} to path")
 sys.path.append(lib_dir.as_posix())
-from nimrls.io import read_prs, read_pheno, read_features_jay
+from nimrls.io import read_features_jay, read_pheno, read_prs
 
+# %%
+results_dir = Path(__file__).parent / "results_confounds"
 
 # %%
 start_time = time.time()
@@ -24,7 +28,7 @@ targets = [
     "morning_evening_person_extreme",
     "nap_day_extreme",
     "snoring",
-    "doze_day"
+    "doze_day",
 ]
 
 # Directories
@@ -52,12 +56,12 @@ extreme_pheno_targets = {
     "morning_extreme": {  # 1170
         "target": "Getting_up_in_morning-2.0",
         "pos_labels": [1, 2],  # Not at all easy
-        "extremes": [1, 2, 4], # Not at all easy, Not very easy, Very easy
+        "extremes": [1, 2, 4],  # Not at all easy, Not very easy, Very easy
     },
     "morning_evening_person_extreme": {  # 1180
         "target": "Morning/evening_person_(chronotype)-2.0",
         "pos_labels": [4],  # Evening
-        "extremes": [1, 4], # Morning Evening
+        "extremes": [1, 4],  # Morning Evening
     },
     "nap_day_extreme": {  # 1190
         "target": "Nap_during_day-2.0",
@@ -67,7 +71,7 @@ extreme_pheno_targets = {
     "pheno_extreme": {  # 1200
         "target": "Sleeplessness_/_insomnia-2.0",
         "pos_labels": [3],
-        "extremes": [1, 3], 
+        "extremes": [1, 3],
     },
     "snoring": {  # 1210
         "target": "Snoring-2.0",
@@ -91,6 +95,38 @@ sub_ids = np.array(data.index)
 np.savetxt(data_dir / "subjects_list.txt", sub_ids, fmt="%s")
 
 # %%
+
+
+def cohen_d(x, y):
+    """Compute Cohen's d for effect size."""
+    n1, n2 = len(x), len(y)
+    s1, s2 = np.std(x, ddof=1), np.std(y, ddof=1)
+    s = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
+    return (np.mean(x) - np.mean(y)) / s
+
+
+target_demographics = {
+    "target": [],
+    "n_positive": [],
+    "n_negative": [],
+    "n_total": [],
+    "age_mean": [],
+    "age_mean_positive": [],
+    "age_mean_negative": [],
+    "age_std": [],
+    "age_std_positive": [],
+    "age_std_negative": [],
+    "age-stats_t-stat": [],
+    "age-stats_p-val": [],
+    "age-stats_cohen-d": [],
+    "sex_male": [],
+    "sex_female": [],
+    "sex_ratio_positive": [],
+    "sex_ratio_negative": [],
+    "sex-stats_chi2-stat": [],
+    "sex-stats_p-val": [],
+    "sex-stats_phi": [],
+}
 for target in targets:
     data = features.copy()
     if target in extreme_pheno_targets.keys() or target == "both_extreme":
@@ -101,8 +137,10 @@ for target in targets:
 
     data.columns = data.columns.astype(str)
 
-
-    if target in extreme_pheno_targets.keys() or target in ["prs_extreme", "both_extreme"]:
+    if target in extreme_pheno_targets.keys() or target in [
+        "prs_extreme",
+        "both_extreme",
+    ]:
         if target in extreme_pheno_targets:
             t_target = extreme_pheno_targets[target]["target"]
             data = data[~data[t_target].isna()]
@@ -118,9 +156,11 @@ for target in targets:
                 extra_params = {"pos_labels": [3]}
             else:
                 data[target] = data[t_target].astype(int)
-                data = data[data[target].isin(
-                    extreme_pheno_targets[target]["extremes"]
-                )]
+                data = data[
+                    data[target].isin(
+                        extreme_pheno_targets[target]["extremes"]
+                    )
+                ]
                 extra_params = {
                     "pos_labels": extreme_pheno_targets[target]["pos_labels"]
                 }
@@ -151,13 +191,66 @@ for target in targets:
             # Get intersection
             data = data[data["pheno_extreme"] == data["prs_extreme"]]
             data.drop(["prs_extreme"], axis=1, inplace=True)
-            data.rename({"pheno_extreme": "both_extreme"}, axis=1, inplace=True)
+            data.rename(
+                {"pheno_extreme": "both_extreme"}, axis=1, inplace=True
+            )
             y = "both_extreme"
             extra_params = {"pos_labels": [1]}
     pos_labels = extra_params["pos_labels"]
+    n_pos = data[y].isin(pos_labels).sum()
+    n_neg = data.shape[0] - n_pos
+    target_demographics["target"].append(target)
+    target_demographics["n_positive"].append(n_pos)
+    target_demographics["n_negative"].append(n_neg)
+    target_demographics["n_total"].append(data.shape[0])
+    target_demographics["age_mean"].append(data["AgeAtScan"].mean())
+    target_demographics["age_std"].append(data["AgeAtScan"].std())
+    
+    x = data.loc[data[y].isin(pos_labels), "AgeAtScan"]
+    z = data.loc[~data[y].isin(pos_labels), "AgeAtScan"]
+    t_stat, p_val = stats.ttest_ind(
+        x,
+        z,
+        equal_var=False,
+    )
+    target_demographics["age_mean_positive"].append(x.mean())
+    target_demographics["age_mean_negative"].append(z.mean())
+    target_demographics["age_std_positive"].append(x.std())
+    target_demographics["age_std_negative"].append(z.std())
+
+    target_demographics["age-stats_cohen-d"].append(cohen_d(x, z))
+    target_demographics["age-stats_t-stat"].append(t_stat)
+    target_demographics["age-stats_p-val"].append(p_val)
+
+    # Sex stats
+    target_demographics["sex_male"].append(data["Sex-0.0"].sum())
+    target_demographics["sex_female"].append((data["Sex-0.0"] == 0).sum())
+
+    x = data.loc[data[y].isin(pos_labels), "Sex-0.0"]
+    z = data.loc[~data[y].isin(pos_labels), "Sex-0.0"]
+
+    target_demographics["sex_ratio_positive"].append(x.sum() / (x == 0).sum())
+    target_demographics["sex_ratio_negative"].append(z.sum() / (z == 0).sum())
+
+    contingency_table = pd.crosstab(
+        data[y].isin(pos_labels), data["Sex-0.0"]
+    )
+
+    chi2, p_val, dof, ex = stats.chi2_contingency(contingency_table)
+    phi = np.sqrt(chi2 / data.shape[0])
+
+    target_demographics["sex-stats_phi"].append(phi)
+    target_demographics["sex-stats_chi2-stat"].append(chi2)
+    target_demographics["sex-stats_p-val"].append(p_val)
     print(target)
     print(data[y].isin(pos_labels).value_counts())
 
+df_demographics = pd.DataFrame(target_demographics)
+
+# %%
+df_demographics.to_csv(
+    results_dir / "demographics_summary.csv", sep=";", index=False
+)
 
 # %% all demographics
 data = features.copy()
@@ -171,5 +264,7 @@ demographics = [
 print(data[demographics].describe())
 print("-----")
 print("Sex")
-print(f"Male {data[demographics[0]].sum()} - Female {(data[demographics[0]] == 0).sum()}")
+print(
+    f"Male {data[demographics[0]].sum()} - Female {(data[demographics[0]] == 0).sum()}"
+)
 # %%
