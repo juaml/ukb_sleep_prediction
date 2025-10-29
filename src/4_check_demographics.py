@@ -92,6 +92,7 @@ data.columns = data.columns.astype(str)
 
 sub_ids = np.array(data.index)
 
+# %%
 np.savetxt(data_dir / "subjects_list.txt", sub_ids, fmt="%s")
 
 # %%
@@ -260,11 +261,71 @@ data.columns = data.columns.astype(str)
 demographics = [
     "Sex-0.0",
     "AgeAtScan",
+    "YearsOfEducation",
+    "Overall_health_rating-0.0",
+    "Ethnic_background-0.0"
 ]
+
+
+# %%
+
+health_coding = {
+    1: "Excellent",
+    2: "Good",
+    3: "Fair",
+    4: "Poor",
+    -1: "Do not know",
+    -3: "Prefer not to answer",
+}
+
+data["Overall_health_rating-0.0"] = data["Overall_health_rating-0.0"].map(health_coding)
+
+# %%
+ethnicity_coding = {
+    1: "White",
+    1001: "White", #"British",
+    1002: "White", #"Irish",
+    1003: "White", #"Any other white background",
+    2: "Mixed",
+    2001: "Mixed", #"White and Black Caribbean",
+    2002: "Mixed", #"White and Black African",
+    2003: "Mixed", #"White and Asian",
+    2004: "Mixed", #"Any other mixed background",
+    3: "Asian or Asian British",
+    3001: "Asian or Asian British", #"Indian",
+    3002: "Asian or Asian British", #"Pakistani",
+    3003: "Asian or Asian British", #"Bangladeshi",
+    3004: "Asian or Asian British", #"Any other Asian background",
+    4: "Black or Black British",
+    4001: "Black or Black British", #"Caribbean",
+    4002: "Black or Black British", #"African",
+    4003: "Black or Black British", #"Any other Black background",
+    5: "Chinese",
+    6: "Other ethnic group",
+    -1: "Do not know",
+    -3: "Prefer not to answer",
+}
+
+data["Ethnic_background-0.0"] = data["Ethnic_background-0.0"].map(ethnicity_coding)
+
+# %%
+
 print(data[demographics].describe())
 print("-----")
 print("Sex")
 print(
     f"Male {data[demographics[0]].sum()} - Female {(data[demographics[0]] == 0).sum()}"
+)
+# %%
+print("-----")
+print("Ethnicity")
+print(
+    data.groupby("Ethnic_background-0.0")["AgeAtScan"].count()
+)
+# %%
+print("-----")
+print("Self-reported health rating  ")
+print(
+    data.groupby("Overall_health_rating-0.0")["AgeAtScan"].count()
 )
 # %%
