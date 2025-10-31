@@ -11,6 +11,8 @@ import seaborn as sns
 # %% Config visuals
 sns.set_theme(style="whitegrid")
 sns.set_context("paper", font_scale=1.5, rc={"xtick.labelsize": 10})
+sns.set_palette("colorblind")
+
 
 # %% Config target/models/scores
 

@@ -10,7 +10,11 @@ import seaborn as sns
 
 # %% Config visuals
 sns.set_theme(style="whitegrid")
-sns.set_context("paper", font_scale=1.5, rc={"xtick.labelsize": 10})
+sns.set_context("paper", font_scale=2, rc={"xtick.labelsize": 10})
+
+color_1 = "#FC8961"
+color_2 = "#51127C"
+
 
 # %% Config target/models/scores
 
@@ -172,7 +176,7 @@ for t_score, t_models in best_models.items():
     best_models_data[t_score] = pd.concat([train_scores, test_scores])
 
 # %%
-split = "test"
+split = "train"
 
 all_chance = []
 chance_models = ["dummy", "dummy_stratified"]
@@ -201,6 +205,7 @@ chance_levels = {
 }
 
 # %%
+panel_labels = ["A", "B", "C", "D"]
 fig, axes = plt.subplots(2, 2, figsize=(16, 16))
 for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
     this_scores = t_df[t_df["split"] == split]
@@ -215,7 +220,7 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
         whis=(5, 95),
     )
     if t_score in chance_levels:
-        for chance_model, color in zip(chance_models, ["r", "g"]):
+        for chance_model, color in zip(chance_models, [color_1, color_2]):
             chance_df = chance_levels[t_score][chance_model]
             chance_df.name = t_score
             chance_df.index.name = "target"
@@ -271,10 +276,10 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
     if i_score == 0:
         ylims = t_ax.get_ylim()
         (line1,) = t_ax.plot(
-            [-1, -1], label="Baseline (majority)", c="r", ls="--", lw=2
+            [-1, -1], label="Baseline (majority)", c=color_1, ls="--", lw=2,
         )
         (line2,) = t_ax.plot(
-            [-1, -1], label="Baseline (chance)", c="g", ls="--", lw=2
+            [-1, -1], label="Baseline (chance)", c=color_2, ls="--", lw=2
         )
         all_lines = [line1, line2]
         if split == "test":
@@ -283,8 +288,18 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
             )
             all_lines.append(line3)
 
-        t_ax.legend(handles=all_lines)
+        t_ax.legend(handles=all_lines, fontsize="x-small")
         t_ax.set_ylim(ylims)
+
+    t_ax.annotate(
+        panel_labels[i_score],
+        xy=(-0.15, 0.95),
+        xycoords="axes fraction",
+        fontsize=32,
+        fontweight="bold",
+        # xytext=(5, -5),
+        textcoords="offset points",
+    )
 fig.subplots_adjust(hspace=0.4, top=0.95)
 fig.suptitle(f"Best model's performance by metric and target (CV-{split})")
 fig.savefig(f"./figs/best_models_all_{split}_zoom.pdf", bbox_inches="tight")
