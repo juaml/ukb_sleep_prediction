@@ -180,6 +180,7 @@ for t_score, t_models in best_models.items():
 
 # %% Now plot side-by-side with phenotype models
 fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+panel_labels = ["A", "B", "C", "D"]
 i_score = 0
 for t_score, t_df in best_models_data.items():
     if t_score in ["roc_auc", "average_precision"]:
@@ -219,6 +220,15 @@ for t_score, t_df in best_models_data.items():
             ],
             rotation=60,
             fontsize=12,
+        )
+        t_ax.annotate(
+            panel_labels[i_score],
+            xy=(-0.15, 0.95),
+            xycoords="axes fraction",
+            fontsize=32,
+            fontweight="bold",
+            # xytext=(5, -5),
+            textcoords="offset points",
         )
         i_score += 1
 fig.subplots_adjust(hspace=0.4, top=0.90)
@@ -271,6 +281,15 @@ for i_score, (t_score, t_df) in enumerate(best_models_data.items()):
         ],
         rotation=60,
         fontsize=12,
+    )
+    t_ax.annotate(
+        panel_labels[i_score],
+        xy=(-0.15, 0.95),
+        xycoords="axes fraction",
+        fontsize=32,
+        fontweight="bold",
+        # xytext=(5, -5),
+        textcoords="offset points",
     )
 fig.subplots_adjust(hspace=0.4, top=0.95)
 fig.suptitle(
