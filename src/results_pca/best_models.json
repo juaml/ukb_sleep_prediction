@@ -1,0 +1,38 @@
+{
+    "roc_auc": {
+        "doze_day": "stacked_linearsvcheursiticc",
+        "morning_evening_person_extreme": "stacked_linearsvcheursiticc",
+        "morning_extreme": "stacked_linearsvcheursiticc",
+        "nap_day_extreme": "stacked_linearsvcheursiticc",
+        "pheno_extreme": "stacked_linearsvcheursiticc",
+        "sleep_duration_extreme": "stacked_linearsvcheursiticc",
+        "snoring": "stacked_linearsvcheursiticc"
+    },
+    "balanced_accuracy": {
+        "doze_day": "stacked_linearsvcheursiticc",
+        "morning_evening_person_extreme": "gsrf",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "stacked_linearsvcheursiticc",
+        "pheno_extreme": "gslinearsvm",
+        "sleep_duration_extreme": "gslinearsvm",
+        "snoring": "gslinearsvm"
+    },
+    "f1": {
+        "doze_day": "stacked_linearsvcheursiticc",
+        "morning_evening_person_extreme": "gsrf",
+        "morning_extreme": "gslinearsvm",
+        "nap_day_extreme": "stacked_linearsvcheursiticc",
+        "pheno_extreme": "stacked_linearsvcheursiticc",
+        "sleep_duration_extreme": "stacked_linearsvcheursiticc",
+        "snoring": "gslinearsvm"
+    },
+    "average_precision": {
+        "doze_day": "stacked_linearsvcheursiticc",
+        "morning_evening_person_extreme": "stacked_linearsvcheursiticc",
+        "morning_extreme": "stacked_linearsvcheursiticc",
+        "nap_day_extreme": "stacked_linearsvcheursiticc",
+        "pheno_extreme": "stacked_linearsvcheursiticc",
+        "sleep_duration_extreme": "stacked_linearsvcheursiticc",
+        "snoring": "stacked_linearsvcheursiticc"
+    }
+}

@@ -48,6 +48,7 @@ cover
 # scratch/
 */junifer_jobs/
 src/logs/
+src/logs_pca/
 src/*.submit
 src/results_bu
 *.joblib
